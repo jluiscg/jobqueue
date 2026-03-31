@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: distributed-job-queue
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/jobqueue
+    username: jobqueue
+    password: local
+    hikari:
+      maximum-pool-size: 15       # tune based on your worker thread count
+      minimum-idle: 3
+      connection-timeout: 30000     # 30s before "no connection available" error
+      idle-timeout: 600000          # reclaim idle connections after 10min
+      max-lifetime: 1800000         # recycle connections after 30min
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # Flyway owns the schema, Hibernate only validates
+    show-sql: false               # keep this off — use proper logging instead
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  jackson:
+    default-property-inclusion: non_null
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
+
+jobqueue:
+  worker:
+    # Dev profile: tuned for M1 Pro (8P+2E cores, 10 total)
+    # Workers are I/O-bound — safe to exceed core count,
+    # but kept conservative to share machine with Docker + IDE.
+    # Production values should be set via environment variables
+    # or a separate application-prod.yml profile.
+    pool-size: 5                 # number of concurrent worker threads
+    polling-interval-ms: 500     # how often workers poll when idle
+    lock-duration-minutes: 5     # how long before a stale lock is recoverable
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.lcortes.jobqueue: DEBUG  # your root package
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
