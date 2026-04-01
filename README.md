@@ -1,5 +1,8 @@
 # JobQueue
 
+> 🚧 **Work in Progress**: This project is under development, I'm currently building the core components.
+> This readme is currently a placeholder of what I aim to build
+
 A distributed task queue and job scheduler built with Java 21 and Spring Boot.
 
 ## Features
