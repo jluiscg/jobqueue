@@ -25,7 +25,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
 
   data:
     redis:
@@ -61,6 +60,7 @@ management:
 logging:
   level:
     com.lcortes.jobqueue: DEBUG  # your root package
+    org.flywaydb: INFO
     org.springframework.web: INFO
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
