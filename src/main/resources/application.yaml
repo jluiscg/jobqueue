@@ -47,6 +47,7 @@ jobqueue:
     pool-size: 5                 # number of concurrent worker threads
     polling-interval-ms: 500     # how often workers poll when idle
     lock-duration-minutes: 5     # how long before a stale lock is recoverable
+    error-backoff-ms: 1000       # how long to wait after a job fails before retrying
 
 management:
   endpoints:
