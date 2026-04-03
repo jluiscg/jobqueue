@@ -31,13 +31,13 @@ public class GlobalExceptionHandler {
                 .toList();
 
         ErrorResponse response = ErrorResponse.of(
-                HttpStatus.UNPROCESSABLE_ENTITY.value(),
+                HttpStatus.UNPROCESSABLE_CONTENT.value(),
                 "Validation Failed",
                 "The request payload failed validation checks.",
                 errors
         );
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(response);
     }
 
     /**
