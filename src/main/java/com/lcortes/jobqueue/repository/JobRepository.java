@@ -1,6 +1,9 @@
 package com.lcortes.jobqueue.repository;
 
 import com.lcortes.jobqueue.domain.Job;
+import com.lcortes.jobqueue.domain.JobStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -44,4 +47,13 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
         RETURNING *
         """, nativeQuery = true)
     Optional<Job> claimNextJob(@Param("workerId") String workerId, @Param("lockMinutes") int lockMinutes);
+
+    /**
+     * Finds jobs with optional filtering by status and type.
+     * Uses JPQL so Hibernate can handle the pagination automatically.
+     */
+    @Query("SELECT j FROM Job j WHERE " +
+            "(:status IS NULL OR j.status = :status) AND " +
+            "(:type IS NULL OR j.type = :type)")
+    Page<Job> findWithFilters(@Param("status") JobStatus status, @Param("type") String type, Pageable pageable);
 }

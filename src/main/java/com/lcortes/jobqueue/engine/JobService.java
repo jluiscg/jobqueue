@@ -1,5 +1,8 @@
 package com.lcortes.jobqueue.engine;
 
+import com.lcortes.jobqueue.api.dto.SubmitJobRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.lcortes.jobqueue.config.WorkerProperties;
 import com.lcortes.jobqueue.domain.Job;
 import com.lcortes.jobqueue.domain.JobStatus;
@@ -7,6 +10,8 @@ import com.lcortes.jobqueue.handler.JobResult;
 import com.lcortes.jobqueue.repository.JobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,11 +26,13 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final WorkerProperties properties;
+    private final ObjectMapper objectMapper;
 
     // Strict constructor injection
-    public JobService(JobRepository jobRepository, WorkerProperties properties) {
+    public JobService(JobRepository jobRepository, WorkerProperties properties, ObjectMapper objectMapper) {
         this.jobRepository = jobRepository;
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -91,8 +98,67 @@ public class JobService {
      * Called by the REST Controller (Task 1.10) to submit a new job to the queue.
      */
     @Transactional
-    public Job submitJob(Job job) {
+    public Job submitJob(SubmitJobRequest jobRequest) {
+        Job job = new Job();
+        job.setType(jobRequest.type());
+        try {
+            // Bridge API JsonNode (tools.jackson) to persistence JsonNode (com.fasterxml).
+            job.setPayload(objectMapper.readTree(jobRequest.payload().toString()));
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Invalid job payload JSON", e);
+        }
+
+        // Map values with safe defaults
+        job.setPriority(jobRequest.priority() != null ?
+                com.lcortes.jobqueue.domain.JobPriority.valueOf(jobRequest.priority().toUpperCase()).getValue() :
+                com.lcortes.jobqueue.domain.JobPriority.NORMAL.getValue());
+
+        if (jobRequest.maxRetries() != null) job.setMaxRetries(jobRequest.maxRetries());
+        if (jobRequest.runAt() != null) job.setRunAt(jobRequest.runAt());
+
         job.setStatus(JobStatus.QUEUED);
         return jobRepository.save(job);
+    }
+
+    /**
+     * Retrieve a job by id. Controller layer should handle 404 mapping.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Job> findById(UUID jobId) {
+        return jobRepository.findById(jobId);
+    }
+
+    /**
+     * Fetches a paginated list of jobs, optionally filtered by status and type.
+     */
+    @Transactional(readOnly = true)
+    public Page<Job> listJobs(JobStatus status, String type, Pageable pageable) {
+        return jobRepository.findWithFilters(status, type, pageable);
+    }
+
+    /**
+     * Attempts to cancel a job.
+     * Per architectural rules, only jobs that have not been claimed can be cancelled.
+     * * @return true if successfully cancelled, false if the job was not found or not in a cancellable state.
+     */
+    @Transactional
+    public boolean cancelJob(UUID id) {
+        Optional<Job> jobOpt = jobRepository.findById(id);
+
+        if (jobOpt.isPresent()) {
+            Job job = jobOpt.get();
+
+            // State Machine Validation: You can only cancel a QUEUED/RETRYING job.
+            // If it's RUNNING, COMPLETED, or DEAD, we reject the cancellation.
+            if (job.getStatus() == JobStatus.QUEUED || job.getStatus() == JobStatus.RETRYING) {
+                job.setStatus(JobStatus.CANCELLED);
+                jobRepository.save(job);
+                log.info("Job [{}] was successfully CANCELLED via API", id);
+                return true;
+            } else {
+                log.warn("Attempted to cancel Job [{}] but it is currently in state {}", id, job.getStatus());
+            }
+        }
+        return false;
     }
 }

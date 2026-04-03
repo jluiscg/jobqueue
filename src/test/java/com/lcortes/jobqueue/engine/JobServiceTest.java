@@ -2,6 +2,7 @@ package com.lcortes.jobqueue.engine;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.lcortes.jobqueue.api.dto.SubmitJobRequest;
 import com.lcortes.jobqueue.config.WorkerProperties;
 import com.lcortes.jobqueue.domain.Job;
 import com.lcortes.jobqueue.domain.JobStatus;
@@ -31,8 +32,9 @@ class JobServiceTest {
 
     private final JobRepository jobRepository = mock(JobRepository.class);
     private final WorkerProperties properties = mock(WorkerProperties.class);
-    private final JobService jobService = new JobService(jobRepository, properties);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final tools.jackson.databind.ObjectMapper toolsObjectMapper = new tools.jackson.databind.ObjectMapper();
+    private final JobService jobService = new JobService(jobRepository, properties, objectMapper);
 
     @BeforeEach
     void setUp() {
@@ -40,15 +42,19 @@ class JobServiceTest {
     }
 
     @Test
-    void shouldSubmitJobsAsQueuedBeforePersisting() {
-        Job job = new Job();
-        job.setStatus(JobStatus.COMPLETED);
+    void shouldSubmitJobsAsQueuedBeforePersisting() throws Exception {
+        tools.jackson.databind.JsonNode payload = toolsObjectMapper.createObjectNode().put("key", "value");
+        SubmitJobRequest request = new SubmitJobRequest("test-type", payload, "HIGH", 5, null);
+        Job savedJob = jobService.submitJob(request);
 
-        Job savedJob = jobService.submitJob(job);
+        assertNotNull(savedJob);
+        assertEquals(JobStatus.QUEUED, savedJob.getStatus());
+        assertEquals("test-type", savedJob.getType());
+        assertEquals(com.lcortes.jobqueue.domain.JobPriority.HIGH.getValue(), savedJob.getPriority());
+        assertEquals(5, savedJob.getMaxRetries());
+        assertEquals(objectMapper.readTree(payload.toString()), savedJob.getPayload());
 
-        assertSame(job, savedJob);
-        assertEquals(JobStatus.QUEUED, job.getStatus());
-        verify(jobRepository).save(job);
+        verify(jobRepository).save(any(Job.class));
     }
 
     @Test
@@ -144,5 +150,3 @@ class JobServiceTest {
         assertNull(savedJob.getRunAt());
     }
 }
-
-
