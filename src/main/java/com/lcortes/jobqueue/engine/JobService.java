@@ -66,7 +66,7 @@ public class JobService {
      * Implements the State Machine and Exponential Backoff from Phase 2.
      */
     @Transactional
-    public void markFailed(UUID jobId) {
+    public void markFailed(UUID jobId, Exception exception) { //exception will be used later
         jobRepository.findById(jobId).ifPresentOrElse(job -> {
             // Release the lock immediately so it doesn't block
             job.setLockedBy(null);

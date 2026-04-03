@@ -84,7 +84,7 @@ public class Worker implements Runnable {
         } catch (Exception e) {
             // Mark failure (JobService will handle retries vs dead-letter queue in Phase 2)
             long duration = System.currentTimeMillis() - startTime;
-            jobService.markFailed(job.getId());
+            jobService.markFailed(job.getId(), e);
             log.error("Job [{}] FAILED after {}ms. Reason: {}", job.getId(), duration, e.getMessage());
         }
     }

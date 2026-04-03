@@ -106,7 +106,7 @@ class JobServiceTest {
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
 
         Instant before = Instant.now();
-        jobService.markFailed(jobId);
+        jobService.markFailed(jobId, new Exception("boom"));
         Instant after = Instant.now();
 
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
@@ -137,7 +137,7 @@ class JobServiceTest {
         job.setLockExpiresAt(Instant.now().plusSeconds(60));
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
 
-        jobService.markFailed(jobId);
+        jobService.markFailed(jobId, new Exception("boom"));
 
         ArgumentCaptor<Job> captor = ArgumentCaptor.forClass(Job.class);
         verify(jobRepository).save(captor.capture());
