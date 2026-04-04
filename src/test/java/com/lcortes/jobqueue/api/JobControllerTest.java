@@ -1,6 +1,5 @@
 package com.lcortes.jobqueue.api;
 
-import com.lcortes.jobqueue.domain.Job;
 import com.lcortes.jobqueue.domain.JobStatus;
 import com.lcortes.jobqueue.domain.exception.JobConflictException;
 import com.lcortes.jobqueue.domain.exception.JobNotFoundException;
@@ -13,7 +12,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
