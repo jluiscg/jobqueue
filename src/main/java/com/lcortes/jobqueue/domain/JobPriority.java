@@ -24,4 +24,8 @@ public enum JobPriority {
         }
         throw new IllegalArgumentException("Unknown JobPriority value: " + value);
     }
+
+    public String displayName() {
+        return name();
+    }
 }

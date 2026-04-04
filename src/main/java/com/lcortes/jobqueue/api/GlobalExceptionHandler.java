@@ -1,6 +1,8 @@
 package com.lcortes.jobqueue.api;
 
 import com.lcortes.jobqueue.api.dto.ErrorResponse;
+import com.lcortes.jobqueue.domain.exception.JobConflictException;
+import com.lcortes.jobqueue.domain.exception.JobNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -31,13 +33,43 @@ public class GlobalExceptionHandler {
                 .toList();
 
         ErrorResponse response = ErrorResponse.of(
-                HttpStatus.UNPROCESSABLE_CONTENT.value(),
+                HttpStatus.UNPROCESSABLE_ENTITY.value(),
                 "Validation Failed",
                 "The request payload failed validation checks.",
                 errors
         );
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(response);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(response);
+    }
+
+    /**
+     * Handles attempts to access jobs that do not exist.
+     */
+    @ExceptionHandler(JobNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleJobNotFoundException(JobNotFoundException ex) {
+        ErrorResponse response = ErrorResponse.of(
+                HttpStatus.NOT_FOUND.value(),
+                "Not Found",
+                ex.getMessage(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    /**
+     * Handles invalid state transitions on jobs (e.g., cancelling a running job).
+     */
+    @ExceptionHandler(JobConflictException.class)
+    public ResponseEntity<ErrorResponse> handleJobConflictException(JobConflictException ex) {
+        ErrorResponse response = ErrorResponse.of(
+                HttpStatus.CONFLICT.value(),
+                "Conflict",
+                ex.getMessage(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     /**

@@ -1,19 +1,22 @@
 package com.lcortes.jobqueue.api;
 
 import com.lcortes.jobqueue.domain.Job;
+import com.lcortes.jobqueue.domain.JobStatus;
+import com.lcortes.jobqueue.domain.exception.JobConflictException;
+import com.lcortes.jobqueue.domain.exception.JobNotFoundException;
 import com.lcortes.jobqueue.engine.JobService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 class JobControllerTest {
 
@@ -21,36 +24,31 @@ class JobControllerTest {
     private final JobController controller = new JobController(jobService);
 
     @Test
-    void shouldReturn404WhenCancellingMissingJob() {
-        UUID id = UUID.randomUUID();
-        when(jobService.findById(id)).thenReturn(Optional.empty());
-
-        ResponseEntity<Void> response = controller.cancelJob(id);
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        verify(jobService, never()).cancelJob(id);
-    }
-
-    @Test
     void shouldReturn204WhenCancellationSucceeds() {
         UUID id = UUID.randomUUID();
-        when(jobService.findById(id)).thenReturn(Optional.of(new Job()));
-        when(jobService.cancelJob(id)).thenReturn(true);
 
         ResponseEntity<Void> response = controller.cancelJob(id);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        verify(jobService).cancelJob(id);
     }
 
     @Test
-    void shouldReturn409WhenJobExistsButCannotBeCancelled() {
+    void shouldThrowJobNotFoundExceptionWhenCancellingMissingJob() {
         UUID id = UUID.randomUUID();
-        when(jobService.findById(id)).thenReturn(Optional.of(new Job()));
-        when(jobService.cancelJob(id)).thenReturn(false);
+        doThrow(new JobNotFoundException(id)).when(jobService).cancelJob(id);
 
-        ResponseEntity<Void> response = controller.cancelJob(id);
+        assertThrows(JobNotFoundException.class, () -> controller.cancelJob(id));
+        verify(jobService).cancelJob(id);
+    }
 
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+    @Test
+    void shouldThrowJobConflictExceptionWhenJobCannotBeCancelled() {
+        UUID id = UUID.randomUUID();
+        doThrow(new JobConflictException(id, JobStatus.RUNNING.name())).when(jobService).cancelJob(id);
+
+        assertThrows(JobConflictException.class, () -> controller.cancelJob(id));
+        verify(jobService).cancelJob(id);
     }
 }
 

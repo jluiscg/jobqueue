@@ -8,13 +8,10 @@ import com.lcortes.jobqueue.domain.JobStatus;
 import com.lcortes.jobqueue.engine.JobService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -31,16 +28,14 @@ public class JobController {
     public ResponseEntity<JobResponse> submitJob(@Valid @RequestBody SubmitJobRequest jobRequest) {
         Job savedJob = jobService.submitJob(jobRequest);
 
-        // 202 Accepted signals that the request was received and queued for async processing
-        return ResponseEntity.accepted().body(JobResponse.fromEntity(savedJob));
+        return ResponseEntity.created(java.net.URI.create("/api/jobs/" + savedJob.getId()))
+                .body(JobResponse.fromEntity(savedJob));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<JobResponse> getJob(@PathVariable UUID id) {
-        Optional<Job> job = jobService.findById(id);
-
-        return job.map(j -> ResponseEntity.ok(JobResponse.fromEntity(j)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        Job job = jobService.getJob(id);
+        return ResponseEntity.ok(JobResponse.fromEntity(job));
     }
 
     @GetMapping
@@ -50,10 +45,11 @@ public class JobController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        // We sort by created_at descending so the newest jobs appear first in the dashboard
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (page < 0) page = 0;
+        if (size < 1) size = 1;
+        if (size > 100) size = 100;
 
-        Page<Job> jobPage = jobService.listJobs(status, type, pageRequest);
+        Page<Job> jobPage = jobService.listJobs(status, type, page, size);
 
         List<JobResponse> content = jobPage.getContent().stream()
                 .map(JobResponse::fromEntity)
@@ -73,17 +69,7 @@ public class JobController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> cancelJob(@PathVariable UUID id) {
-        if (jobService.findById(id).isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        boolean cancelled = jobService.cancelJob(id);
-
-        if (cancelled) {
-            return ResponseEntity.noContent().build(); // 204 No Content, successfully canceled
-        } else {
-            // 409 Conflict if the job is already running or otherwise not cancellable
-            return ResponseEntity.status(409).build();
-        }
+        jobService.cancelJob(id);
+        return ResponseEntity.noContent().build();
     }
 }

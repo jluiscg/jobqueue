@@ -2,6 +2,7 @@ package com.lcortes.jobqueue.api.dto;
 
 import com.lcortes.jobqueue.domain.Job;
 import com.lcortes.jobqueue.domain.JobStatus;
+import com.lcortes.jobqueue.domain.JobPriority;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -30,9 +31,7 @@ public record JobResponse(
                 job.getId(),
                 job.getType(),
                 job.getStatus(),
-                job.getPriority() == 20 ? "CRITICAL" :
-                        job.getPriority() == 10 ? "HIGH" :
-                        job.getPriority() == 5  ? "NORMAL" : "LOW",
+                JobPriority.fromValue(job.getPriority()).displayName(),
                 toToolsJsonNode(job.getPayload()),
                 toToolsJsonNode(job.getResult()),
                 job.getAttemptCount(),
